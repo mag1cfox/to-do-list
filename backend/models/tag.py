@@ -21,6 +21,11 @@ class Tag(BaseModel):
         base_dict.update({
             'name': self.name,
             'user_id': self.user_id,
-            'color': self.color
+            'color': self.color,
+            'usage_count': self.get_usage_count()
         })
         return base_dict
+
+    def get_usage_count(self) -> int:
+        """获取标签使用次数"""
+        return len(self.tasks) if self.tasks else 0

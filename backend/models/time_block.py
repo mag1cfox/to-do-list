@@ -3,6 +3,7 @@ from sqlalchemy import String, DateTime, ForeignKey, Enum, Boolean
 from sqlalchemy.orm import relationship
 from typing import Dict, Any
 import enum
+from datetime import datetime
 
 
 class BlockType(enum.Enum):
@@ -47,6 +48,31 @@ class TimeBlock(BaseModel):
             'color': self.color,
             'is_recurring': self.is_recurring,
             'recurrence_pattern': self.recurrence_pattern,
-            'template_id': self.template_id
+            'template_id': self.template_id,
+            'duration': self.get_duration(),
+            'is_active': self.is_active()
         })
         return base_dict
+
+    def get_duration(self) -> int:
+        """获取时间块持续时间（分钟）"""
+        if self.start_time and self.end_time:
+            duration = (self.end_time - self.start_time).total_seconds() / 60
+            return int(duration)
+        return 0
+
+    def is_active(self) -> bool:
+        """检查时间块是否处于活跃状态"""
+        now = datetime.utcnow()
+        return self.start_time <= now <= self.end_time if self.start_time and self.end_time else False
+
+    def overlaps_with(self, other: 'TimeBlock') -> bool:
+        """检查与另一个时间块是否重叠"""
+        if not self.start_time or not self.end_time or not other.start_time or not other.end_time:
+            return False
+        return self.start_time < other.end_time and other.start_time < self.end_time
+
+    def can_accommodate_task(self, task_duration: int) -> bool:
+        """检查时间块是否能容纳指定时长的任务"""
+        block_duration = self.get_duration()
+        return block_duration >= task_duration
