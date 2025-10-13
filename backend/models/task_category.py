@@ -26,6 +26,24 @@ class TaskCategory(BaseModel):
             'user_id': self.user_id,
             'color': self.color,
             'icon': self.icon,
-            'description': self.description
+            'description': self.description,
+            'task_count': self.get_task_count(),
+            'total_time_spent': self.get_total_time_spent()
         })
         return base_dict
+
+    def get_task_count(self) -> int:
+        """获取任务数量"""
+        return len(self.tasks) if self.tasks else 0
+
+    def get_total_time_spent(self) -> int:
+        """获取总时间花费（分钟）"""
+        if not self.tasks:
+            return 0
+
+        total_time = 0
+        for task in self.tasks:
+            # 这里需要实现获取任务实际时间的方法
+            # 暂时返回0，后续可以集成TimeLog数据
+            total_time += 0
+        return total_time

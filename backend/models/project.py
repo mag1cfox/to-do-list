@@ -24,6 +24,45 @@ class Project(BaseModel):
             'name': self.name,
             'description': self.description,
             'user_id': self.user_id,
-            'color': self.color
+            'color': self.color,
+            'task_count': self.get_task_count(),
+            'total_estimated_time': self.get_total_estimated_time(),
+            'total_actual_time': self.get_total_actual_time(),
+            'completion_progress': self.get_completion_progress()
         })
         return base_dict
+
+    def get_task_count(self) -> int:
+        """获取项目中的任务数量"""
+        return len(self.tasks) if self.tasks else 0
+
+    def get_total_estimated_time(self) -> int:
+        """获取项目总预估时间（分钟）"""
+        if not self.tasks:
+            return 0
+
+        total_time = 0
+        for task in self.tasks:
+            # 假设每个番茄钟25分钟
+            total_time += task.estimated_pomodoros * 25 if task.estimated_pomodoros else 0
+        return total_time
+
+    def get_total_actual_time(self) -> int:
+        """获取项目总实际花费时间（分钟）"""
+        if not self.tasks:
+            return 0
+
+        total_time = 0
+        for task in self.tasks:
+            # 这里需要实现获取任务实际时间的方法
+            # 暂时返回0，后续可以集成TimeLog数据
+            total_time += 0
+        return total_time
+
+    def get_completion_progress(self) -> float:
+        """获取项目完成进度（0-1）"""
+        if not self.tasks:
+            return 0.0
+
+        completed_tasks = [task for task in self.tasks if task.status == 'COMPLETED']
+        return len(completed_tasks) / len(self.tasks)
