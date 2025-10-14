@@ -24,6 +24,10 @@ function Header() {
     {
       key: '/calendar',
       label: <Link to="/calendar">日历视图</Link>
+    },
+    {
+      key: '/scheduler',
+      label: <Link to="/scheduler">时间块调度</Link>
     }
   ]
 

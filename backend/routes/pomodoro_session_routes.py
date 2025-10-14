@@ -7,7 +7,7 @@ from datetime import datetime
 
 pomodoro_session_bp = Blueprint('pomodoro_sessions', __name__)
 
-@pomodoro_session_bp.route('/api/pomodoro-sessions', methods=['GET'])
+@pomodoro_session_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_pomodoro_sessions():
     """获取用户的番茄钟会话列表"""
@@ -52,7 +52,7 @@ def get_pomodoro_sessions():
         'pomodoro_sessions': [session.to_dict() for session in pomodoro_sessions]
     })
 
-@pomodoro_session_bp.route('/api/pomodoro-sessions', methods=['POST'])
+@pomodoro_session_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_pomodoro_session():
     """创建新的番茄钟会话"""
@@ -106,7 +106,7 @@ def create_pomodoro_session():
         'pomodoro_session': pomodoro_session.to_dict()
     }), 201
 
-@pomodoro_session_bp.route('/api/pomodoro-sessions/<int:session_id>/start', methods=['POST'])
+@pomodoro_session_bp.route('/<int:session_id>/start', methods=['POST'])
 @jwt_required()
 def start_pomodoro_session(session_id):
     """开始番茄钟会话"""
@@ -131,7 +131,7 @@ def start_pomodoro_session(session_id):
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
 
-@pomodoro_session_bp.route('/api/pomodoro-sessions/<int:session_id>/complete', methods=['POST'])
+@pomodoro_session_bp.route('/<int:session_id>/complete', methods=['POST'])
 @jwt_required()
 def complete_pomodoro_session(session_id):
     """完成番茄钟会话"""
@@ -158,7 +158,7 @@ def complete_pomodoro_session(session_id):
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
 
-@pomodoro_session_bp.route('/api/pomodoro-sessions/<int:session_id>/interrupt', methods=['POST'])
+@pomodoro_session_bp.route('/<int:session_id>/interrupt', methods=['POST'])
 @jwt_required()
 def interrupt_pomodoro_session(session_id):
     """中断番茄钟会话"""
@@ -185,7 +185,7 @@ def interrupt_pomodoro_session(session_id):
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
 
-@pomodoro_session_bp.route('/api/pomodoro-sessions/active', methods=['GET'])
+@pomodoro_session_bp.route('/active', methods=['GET'])
 @jwt_required()
 def get_active_pomodoro_session():
     """获取当前活跃的番茄钟会话"""
@@ -203,7 +203,7 @@ def get_active_pomodoro_session():
     else:
         return jsonify({'message': '没有活跃的番茄钟会话'})
 
-@pomodoro_session_bp.route('/api/pomodoro-sessions/<int:session_id>', methods=['GET'])
+@pomodoro_session_bp.route('/<int:session_id>', methods=['GET'])
 @jwt_required()
 def get_pomodoro_session(session_id):
     """获取特定的番茄钟会话"""
@@ -221,7 +221,7 @@ def get_pomodoro_session(session_id):
         'pomodoro_session': pomodoro_session.to_dict()
     })
 
-@pomodoro_session_bp.route('/api/pomodoro-sessions/<int:session_id>', methods=['DELETE'])
+@pomodoro_session_bp.route('/<int:session_id>', methods=['DELETE'])
 @jwt_required()
 def delete_pomodoro_session(session_id):
     """删除番茄钟会话"""
