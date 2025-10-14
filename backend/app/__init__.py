@@ -28,7 +28,7 @@ def create_app(config_class=None):
     CORS(app, origins=app.config['CORS_ORIGINS'])
 
     # 注册蓝图
-    from routes import auth_routes, user_routes, task_routes, task_category_routes, project_routes, tag_routes, time_block_routes, time_block_template_routes
+    from routes import auth_routes, user_routes, task_routes, task_category_routes, project_routes, tag_routes, time_block_routes, time_block_template_routes, pomodoro_session_routes
     app.register_blueprint(auth_routes.bp, url_prefix='/api/auth')
     app.register_blueprint(user_routes.bp, url_prefix='/api/users')
     app.register_blueprint(task_routes.bp, url_prefix='/api/tasks')
@@ -37,6 +37,7 @@ def create_app(config_class=None):
     app.register_blueprint(tag_routes.bp, url_prefix='/api/tags')
     app.register_blueprint(time_block_routes.bp, url_prefix='/api/time-blocks')
     app.register_blueprint(time_block_template_routes.bp, url_prefix='/api/time-block-templates')
+    app.register_blueprint(pomodoro_session_routes.pomodoro_session_bp, url_prefix='/api/pomodoro-sessions')
 
     # 注册错误处理器
     register_error_handlers(app)

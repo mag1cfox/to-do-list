@@ -24,11 +24,11 @@ class User(BaseModel):
     time_blocks = relationship('TimeBlock', back_populates='user', cascade='all, delete-orphan')
     time_block_templates = relationship('TimeBlockTemplate', back_populates='user', cascade='all, delete-orphan')
     pomodoro_sessions = relationship('PomodoroSession', back_populates='user', cascade='all, delete-orphan')
-    time_logs = relationship('TimeLog', back_populates='user', cascade='all, delete-orphan')
-    recommendations = relationship('Recommendation', back_populates='user', cascade='all, delete-orphan')
-    daily_stats = relationship('DailyStats', back_populates='user', cascade='all, delete-orphan')
-    daily_reviews = relationship('DailyReview', back_populates='user', cascade='all, delete-orphan')
-    review_templates = relationship('ReviewTemplate', back_populates='user', cascade='all, delete-orphan')
+    # time_logs = relationship('TimeLog', back_populates='user', cascade='all, delete-orphan')
+    # recommendations = relationship('Recommendation', back_populates='user', cascade='all, delete-orphan')
+    # daily_stats = relationship('DailyStats', back_populates='user', cascade='all, delete-orphan')
+    # daily_reviews = relationship('DailyReview', back_populates='user', cascade='all, delete-orphan')
+    # review_templates = relationship('ReviewTemplate', back_populates='user', cascade='all, delete-orphan')
 
     def set_password(self, password: str):
         """设置密码（加密存储）"""
