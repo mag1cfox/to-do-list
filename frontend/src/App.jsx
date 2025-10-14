@@ -5,6 +5,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Tasks from './pages/Tasks'
 import Projects from './pages/Projects'
+import Calendar from './pages/Calendar'
 import './App.css'
 
 const { Content } = Layout
@@ -19,6 +20,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/projects" element={<Projects />} />
+          <Route path="/calendar" element={<Calendar />} />
         </Routes>
       </Content>
     </Layout>

@@ -20,6 +20,10 @@ function Header() {
     {
       key: '/projects',
       label: <Link to="/projects">项目管理</Link>
+    },
+    {
+      key: '/calendar',
+      label: <Link to="/calendar">日历视图</Link>
     }
   ]
 
