@@ -8,6 +8,9 @@ import Projects from './pages/Projects'
 import Calendar from './pages/Calendar'
 import Scheduler from './pages/Scheduler'
 import Pomodoro from './pages/Pomodoro'
+import Analytics from './pages/Analytics'
+import Settings from './pages/Settings'
+import Profile from './pages/Profile'
 import './App.css'
 
 const { Content } = Layout
@@ -25,6 +28,9 @@ function App() {
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/scheduler" element={<Scheduler />} />
           <Route path="/pomodoro" element={<Pomodoro />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </Content>
     </Layout>

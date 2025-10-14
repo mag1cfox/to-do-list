@@ -1,6 +1,7 @@
 import { Layout, Menu, Button, Space } from 'antd'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
+import { UserOutlined } from '@ant-design/icons'
 
 const { Header: AntHeader } = Layout
 
@@ -28,6 +29,18 @@ function Header() {
     {
       key: '/scheduler',
       label: <Link to="/scheduler">时间块调度</Link>
+    },
+    {
+      key: '/pomodoro',
+      label: <Link to="/pomodoro">番茄钟</Link>
+    },
+    {
+      key: '/analytics',
+      label: <Link to="/analytics">数据分析</Link>
+    },
+    {
+      key: '/settings',
+      label: <Link to="/settings">系统设置</Link>
     }
   ]
 
@@ -48,7 +61,10 @@ function Header() {
       <Space>
         {isAuthenticated ? (
           <>
-            <span style={{ color: 'white' }}>欢迎，{user?.username}</span>
+            <Link to="/profile" style={{ color: 'white', display: 'flex', alignItems: 'center' }}>
+              <UserOutlined style={{ marginRight: 4 }} />
+              {user?.username}
+            </Link>
             <Button type="primary" onClick={logout}>
               退出登录
             </Button>
