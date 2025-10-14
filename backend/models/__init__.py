@@ -36,3 +36,4 @@ from .pomodoro_session import PomodoroSession
 # from .review_section import ReviewSection
 from .project import Project
 from .tag import Tag
+from .task_tags import task_tags

@@ -16,6 +16,10 @@ function Header() {
     {
       key: '/tasks',
       label: <Link to="/tasks">任务管理</Link>
+    },
+    {
+      key: '/projects',
+      label: <Link to="/projects">项目管理</Link>
     }
   ]
 

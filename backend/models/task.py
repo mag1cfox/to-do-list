@@ -55,7 +55,7 @@ class Task(BaseModel):
     category = relationship('TaskCategory', back_populates='tasks')
     scheduled_time_block = relationship('TimeBlock', back_populates='scheduled_tasks')
     project = relationship('Project', back_populates='tasks')
-    # tags = relationship('Tag', secondary='task_tags', back_populates='tasks')
+    tags = relationship('Tag', secondary='task_tags', back_populates='tasks')
     pomodoro_sessions = relationship('PomodoroSession', back_populates='task', cascade='all, delete-orphan')
     # time_logs = relationship('TimeLog', back_populates='task', cascade='all, delete-orphan')
 
