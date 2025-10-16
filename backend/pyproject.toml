@@ -10,10 +10,14 @@ dependencies = [
     "flask-sqlalchemy>=3.1.0",
     "flask-migrate>=4.0.0",
     "flask-jwt-extended>=4.5.0",
+    "flask-cors>=4.0.0",
     "marshmallow>=3.20.0",
     "python-dotenv>=1.0.0",
     "werkzeug>=3.0.0"
 ]
+
+[tool.setuptools.packages.find]
+include = ["app*", "models*", "routes*", "config*", "utils*"]
 
 [project.optional-dependencies]
 dev = [

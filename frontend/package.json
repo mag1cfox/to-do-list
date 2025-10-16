@@ -10,13 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/plots": "^2.6.5",
+    "antd": "^5.12.0",
+    "axios": "^1.6.0",
+    "dayjs": "^1.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.0",
-    "antd": "^5.12.0",
-    "axios": "^1.6.0",
-    "zustand": "^4.4.0",
-    "dayjs": "^1.11.0"
+    "zustand": "^4.4.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
