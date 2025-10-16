@@ -24,7 +24,7 @@ def index():
     }
 
 
-@app.route('/health')
+@app.route('/api/health')
 def health_check():
     """健康检查端点"""
     return {
