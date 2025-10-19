@@ -67,6 +67,77 @@ export const taskService = {
   deleteTask: (id) => api.delete(`/tasks/${id}`)
 }
 
+// 任务类别相关API
+export const taskCategoryService = {
+  getCategories: () => api.get('/task-categories'),
+  getCategory: (id) => api.get(`/task-categories/${id}`),
+  createCategory: (data) => api.post('/task-categories', data),
+  updateCategory: (id, data) => api.put(`/task-categories/${id}`, data),
+  deleteCategory: (id) => api.delete(`/task-categories/${id}`)
+}
+
+// 项目相关API
+export const projectService = {
+  getProjects: () => api.get('/projects'),
+  getProject: (id) => api.get(`/projects/${id}`),
+  createProject: (data) => api.post('/projects', data),
+  updateProject: (id, data) => api.put(`/projects/${id}`, data),
+  deleteProject: (id) => api.delete(`/projects/${id}`)
+}
+
+// 标签相关API
+export const tagService = {
+  getTags: () => api.get('/tags'),
+  getTag: (id) => api.get(`/tags/${id}`),
+  createTag: (data) => api.post('/tags', data),
+  updateTag: (id, data) => api.put(`/tags/${id}`, data),
+  deleteTag: (id) => api.delete(`/tags/${id}`)
+}
+
+// 时间块相关API
+export const timeBlockService = {
+  getTimeBlocks: (params) => api.get('/time-blocks', { params }),
+  getTimeBlock: (id) => api.get(`/time-blocks/${id}`),
+  createTimeBlock: (data) => api.post('/time-blocks', data),
+  updateTimeBlock: (id, data) => api.put(`/time-blocks/${id}`, data),
+  deleteTimeBlock: (id) => api.delete(`/time-blocks/${id}`),
+  scheduleTask: (timeBlockId, taskId) => api.post(`/time-blocks/${timeBlockId}/schedule-task`, { task_id: taskId }),
+  unscheduleTask: (timeBlockId, taskId) => api.post(`/time-blocks/${timeBlockId}/unschedule-task`, { task_id: taskId }),
+  checkConflicts: (date) => api.post('/time-blocks/check-conflicts', { date }),
+  suggestTimeSlots: (taskId, date) => api.post('/time-blocks/suggest-time-slots', { task_id: taskId, date })
+}
+
+// 时间块模板相关API
+export const timeBlockTemplateService = {
+  getTemplates: () => api.get('/time-block-templates'),
+  getTemplate: (id) => api.get(`/time-block-templates/${id}`),
+  createTemplate: (data) => api.post('/time-block-templates', data),
+  updateTemplate: (id, data) => api.put(`/time-block-templates/${id}`, data),
+  deleteTemplate: (id) => api.delete(`/time-block-templates/${id}`),
+  applyTemplate: (id, data) => api.post(`/time-block-templates/${id}/apply`, data),
+  cloneTemplate: (id) => api.post(`/time-block-templates/${id}/clone`)
+}
+
+// 番茄钟相关API
+export const pomodoroService = {
+  getSessions: (params) => api.get('/pomodoro-sessions', { params }),
+  getSession: (id) => api.get(`/pomodoro-sessions/${id}`),
+  createSession: (data) => api.post('/pomodoro-sessions', data),
+  startSession: (id) => api.post(`/pomodoro-sessions/${id}/start`),
+  completeSession: (id, summary) => api.post(`/pomodoro-sessions/${id}/complete`, { completion_summary: summary }),
+  interruptSession: (id, reason) => api.post(`/pomodoro-sessions/${id}/interrupt`, { interruption_reason: reason }),
+  getActiveSession: () => api.get('/pomodoro-sessions/active'),
+  deleteSession: (id) => api.delete(`/pomodoro-sessions/${id}`)
+}
+
+// 推荐引擎相关API
+export const recommendationService = {
+  getCurrentRecommendation: (params) => api.get('/recommendations/current', { params }),
+  getTaskRecommendations: (params) => api.get('/recommendations/tasks', { params }),
+  getScheduleSuggestions: (params) => api.get('/recommendations/schedule', { params }),
+  getRecommendationSummary: () => api.get('/recommendations/summary')
+}
+
 // 健康检查
 export const healthService = {
   check: () => api.get('/health')

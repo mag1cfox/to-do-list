@@ -34,10 +34,9 @@ def health_check():
 
 
 if __name__ == '__main__':
-    # 开发环境运行
-    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    # 开发环境运行 - 强制启用DEBUG模式
     app.run(
         host='0.0.0.0',
         port=5000,
-        debug=debug
+        debug=True
     )

@@ -19,11 +19,20 @@ function Login() {
   const onLogin = async (values) => {
     setLoading(true)
     try {
-      await login(values)
+      const response = await login(values)
+      console.log('登录响应:', response)
       message.success('登录成功！')
       navigate('/')
     } catch (error) {
-      message.error(error.message || '登录失败')
+      console.error('登录失败:', error)
+      // 显示更详细的错误信息
+      if (error.error) {
+        message.error(`登录失败: ${error.error}`)
+      } else if (error.message) {
+        message.error(`登录失败: ${error.message}`)
+      } else {
+        message.error('登录失败: 用户名或密码错误')
+      }
     } finally {
       setLoading(false)
     }
@@ -32,11 +41,20 @@ function Login() {
   const onRegister = async (values) => {
     setLoading(true)
     try {
-      await register(values)
+      const response = await register(values)
+      console.log('注册响应:', response)
       message.success('注册成功！请登录')
       setActiveTab('login')
     } catch (error) {
-      message.error(error.message || '注册失败')
+      console.error('注册失败:', error)
+      // 显示更详细的错误信息
+      if (error.error) {
+        message.error(`注册失败: ${error.error}`)
+      } else if (error.message) {
+        message.error(`注册失败: ${error.message}`)
+      } else {
+        message.error('注册失败: 请检查输入信息')
+      }
     } finally {
       setLoading(false)
     }

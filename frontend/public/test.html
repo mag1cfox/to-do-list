@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前端测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: white;
+            color: black;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-box {
+            padding: 20px;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: #007bff;">前端服务测试页面</h1>
+        <div class="test-box">
+            <h2>基础功能测试</h2>
+            <p>如果你能看到这个页面，说明：</p>
+            <ul>
+                <li>✅ HTML文件正常加载</li>
+                <li>✅ CSS样式正常应用</li>
+                <li>✅ 前端服务器正常运行</li>
+            </ul>
+        </div>
+
+        <div class="test-box">
+            <h2>JavaScript测试</h2>
+            <p>当前时间：<span id="time"></span></p>
+            <p>JavaScript状态：<span id="js-status">检测中...</span></p>
+        </div>
+
+        <div class="test-box">
+            <h2>React应用测试</h2>
+            <p>如果React应用正常工作，请访问：</p>
+            <a href="/" style="color: #007bff;">返回React应用首页</a>
+        </div>
+    </div>
+
+    <script>
+        // 测试JavaScript
+        document.getElementById('time').textContent = new Date().toLocaleString();
+        document.getElementById('js-status').textContent = '✅ JavaScript正常工作';
+
+        console.log('测试页面加载成功');
+        console.log('时间:', new Date().toLocaleString());
+    </script>
+</body>
+</html>

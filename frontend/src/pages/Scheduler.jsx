@@ -6,8 +6,8 @@ import {
   Form,
   Input,
   DatePicker,
-  Select,
   Switch,
+  Select,
   message,
   Popconfirm,
   Space,
@@ -17,7 +17,10 @@ import {
   Tag,
   Table,
   Tooltip,
-  Alert
+  Alert,
+  Empty,
+  Progress,
+  Timeline
 } from 'antd'
 import {
   PlusOutlined,
@@ -28,15 +31,19 @@ import {
   CalendarOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  BlockOutlined,
+  ScheduleOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import api from '../services/api'
+import { timeBlockService, timeBlockTemplateService } from '../services/api'
+import { useAuthStore } from '../stores/authStore'
 
 const { Option } = Select
 const { TextArea } = Input
 
 function Scheduler() {
+  const { isAuthenticated } = useAuthStore()
   const [templates, setTemplates] = useState([])
   const [timeBlocks, setTimeBlocks] = useState([])
   const [loading, setLoading] = useState(false)
@@ -52,10 +59,10 @@ function Scheduler() {
   const fetchTemplates = async () => {
     setLoading(true)
     try {
-      const response = await api.get('/time-block-templates')
-      setTemplates(response.data)
+      const response = await timeBlockTemplateService.getTemplates()
+      setTemplates(response || [])
     } catch (error) {
-      message.error('获取模板列表失败')
+      message.error('获取模板列表失败: ' + (error.error || error.message))
     } finally {
       setLoading(false)
     }
@@ -64,27 +71,30 @@ function Scheduler() {
   // 获取指定日期的时间块
   const fetchTimeBlocks = async (date) => {
     try {
-      const params = `?date=${date.format('YYYY-MM-DD')}`
-      const response = await api.get(`/time-blocks${params}`)
-      setTimeBlocks(response.data)
+      const response = await timeBlockService.getTimeBlocks({
+        date: date.format('YYYY-MM-DD')
+      })
+      setTimeBlocks(response || [])
     } catch (error) {
-      message.error('获取时间块列表失败')
+      message.error('获取时间块列表失败: ' + (error.error || error.message))
     }
   }
 
   useEffect(() => {
-    fetchTemplates()
-    fetchTimeBlocks(selectedDate)
-  }, [selectedDate])
+    if (isAuthenticated) {
+      fetchTemplates()
+      fetchTimeBlocks(selectedDate)
+    }
+  }, [isAuthenticated, selectedDate])
 
   // 创建/更新模板
   const handleTemplateSubmit = async (values) => {
     try {
       if (editingTemplate) {
-        await api.put(`/time-block-templates/${editingTemplate.id}`, values)
+        await timeBlockTemplateService.updateTemplate(editingTemplate.id, values)
         message.success('模板更新成功')
       } else {
-        await api.post('/time-block-templates', values)
+        await timeBlockTemplateService.createTemplate(values)
         message.success('模板创建成功')
       }
 
@@ -93,18 +103,18 @@ function Scheduler() {
       form.resetFields()
       fetchTemplates()
     } catch (error) {
-      message.error(error.response?.data?.error || '操作失败')
+      message.error('操作失败: ' + (error.error || error.message))
     }
   }
 
   // 应用模板到日期
   const handleApplyTemplate = async (values) => {
     try {
-      const response = await api.post(`/time-block-templates/${selectedTemplate.id}/apply`, {
+      const response = await timeBlockTemplateService.applyTemplate(selectedTemplate.id, {
         date: values.date.format('YYYY-MM-DD')
       })
 
-      const generatedBlocks = response.data.generated_time_blocks
+      const generatedBlocks = response.generated_time_blocks || []
       message.success(`模板应用成功，生成了 ${generatedBlocks.length} 个时间块`)
 
       setApplyModalVisible(false)
@@ -117,29 +127,29 @@ function Scheduler() {
         fetchTimeBlocks(selectedDate)
       }
     } catch (error) {
-      message.error(error.response?.data?.error || '应用模板失败')
+      message.error('应用模板失败: ' + (error.error || error.message))
     }
   }
 
   // 删除模板
   const handleDeleteTemplate = async (templateId) => {
     try {
-      await api.delete(`/time-block-templates/${templateId}`)
+      await timeBlockTemplateService.deleteTemplate(templateId)
       message.success('模板删除成功')
       fetchTemplates()
     } catch (error) {
-      message.error(error.response?.data?.error || '删除失败')
+      message.error('删除失败: ' + (error.error || error.message))
     }
   }
 
   // 克隆模板
   const handleCloneTemplate = async (templateId) => {
     try {
-      await api.post(`/time-block-templates/${templateId}/clone`)
+      await timeBlockTemplateService.cloneTemplate(templateId)
       message.success('模板克隆成功')
       fetchTemplates()
     } catch (error) {
-      message.error(error.response?.data?.error || '克隆失败')
+      message.error('克隆失败: ' + (error.error || error.message))
     }
   }
 
@@ -321,6 +331,18 @@ function Scheduler() {
       )
     }
   ]
+
+  // 如果用户未登录，显示提示信息
+  if (!isAuthenticated) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <Empty
+          description="请先登录以使用时间块调度功能"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '24px' }}>

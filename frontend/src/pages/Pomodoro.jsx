@@ -16,7 +16,9 @@ import {
   Tag,
   List,
   Avatar,
-  Timeline
+  Timeline,
+  Switch,
+  Empty
 } from 'antd'
 import {
   PlayCircleOutlined,
@@ -29,12 +31,27 @@ import {
   HistoryOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import api from '../services/api'
+import { pomodoroService, taskService } from '../services/api'
+import { useAuthStore } from '../stores/authStore'
 
 const { Title, Text } = Typography
 const { Option } = Select
 
 function Pomodoro() {
+  const { isAuthenticated } = useAuthStore()
+
+  // 如果用户未登录，显示提示信息
+  if (!isAuthenticated) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <Empty
+          description="请先登录以使用番茄钟功能"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      </div>
+    )
+  }
+
   const [tasks, setTasks] = useState([])
   const [selectedTask, setSelectedTask] = useState(null)
   const [activeSession, setActiveSession] = useState(null)
@@ -63,49 +80,54 @@ function Pomodoro() {
   // 获取任务列表
   const fetchTasks = async () => {
     try {
-      const response = await api.get('/tasks')
-      setTasks(response.data || [])
+      const response = await taskService.getTasks({ status: 'PENDING,IN_PROGRESS' })
+      setTasks(response.tasks || [])
     } catch (error) {
-      console.error('获取任务列表失败:', error)
+      message.error('获取任务列表失败: ' + (error.error || error.message))
     }
   }
 
   // 获取会话列表
   const fetchSessions = async () => {
     try {
-      const response = await api.get('/pomodoro-sessions')
-      setSessions(response.data?.pomodoro_sessions || [])
+      const response = await pomodoroService.getSessions()
+      setSessions(response.pomodoro_sessions || [])
     } catch (error) {
-      console.error('获取会话列表失败:', error)
+      message.error('获取会话列表失败: ' + (error.error || error.message))
     }
   }
 
   // 获取活跃会话
   const fetchActiveSession = async () => {
     try {
-      const response = await api.get('/pomodoro-sessions/active')
-      if (response.data?.active_session) {
-        setActiveSession(response.data.active_session)
+      const response = await pomodoroService.getActiveSession()
+      if (response.active_session) {
+        setActiveSession(response.active_session)
         setIsRunning(true)
-        startTimer(response.data.active_session.remaining_time || settings.duration * 60)
+        startTimer(response.active_session.remaining_time || settings.duration * 60)
+        // 查找对应的任务
+        const task = tasks.find(t => t.id === response.active_session.task_id)
+        setSelectedTask(task)
       } else {
         setActiveSession(null)
         setIsRunning(false)
       }
     } catch (error) {
-      console.error('获取活跃会话失败:', error)
+      // 没有活跃会话是正常情况
     }
   }
 
   useEffect(() => {
-    fetchTasks()
-    fetchSessions()
-    fetchActiveSession()
+    if (isAuthenticated) {
+      fetchTasks()
+      fetchSessions()
+      fetchActiveSession()
 
-    // 每隔5秒检查一次活跃会话状态
-    const interval = setInterval(fetchActiveSession, 5000)
-    return () => clearInterval(interval)
-  }, [])
+      // 每隔5秒检查一次活跃会话状态
+      const interval = setInterval(fetchActiveSession, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [isAuthenticated])
 
   // 启动计时器
   const startTimer = (initialTime = settings.duration * 60) => {
@@ -148,17 +170,16 @@ function Pomodoro() {
     setLoading(true)
     try {
       // 创建会话
-      const sessionData = {
+      const response = await pomodoroService.createSession({
         task_id: selectedTask.id,
         planned_duration: settings.duration,
         session_type: 'FOCUS'
-      }
+      })
 
-      const response = await api.post('/pomodoro-sessions', sessionData)
-      const session = response.data.pomodoro_session
+      const session = response.pomodoro_session
 
       // 开始会话
-      await api.post(`/pomodoro-sessions/${session.id}/start`)
+      await pomodoroService.startSession(session.id)
 
       setActiveSession(session)
       setIsRunning(true)
@@ -166,8 +187,7 @@ function Pomodoro() {
 
       message.success('番茄钟已开始！')
     } catch (error) {
-      console.error('开始番茄钟失败:', error)
-      message.error('开始番茄钟失败')
+      message.error('开始番茄钟失败: ' + (error.error || error.message))
     } finally {
       setLoading(false)
     }
@@ -194,9 +214,7 @@ function Pomodoro() {
 
     setLoading(true)
     try {
-      await api.post(`/pomodoro-sessions/${activeSession.id}/complete`, {
-        completion_summary: completionSummary || '番茄钟完成'
-      })
+      await pomodoroService.completeSession(activeSession.id, completionSummary || '番茄钟完成')
 
       setActiveSession(null)
       stopTimer()
@@ -212,8 +230,7 @@ function Pomodoro() {
         startBreak()
       }
     } catch (error) {
-      console.error('完成番茄钟失败:', error)
-      message.error('完成番茄钟失败')
+      message.error('完成番茄钟失败: ' + (error.error || error.message))
     } finally {
       setLoading(false)
     }
@@ -225,9 +242,7 @@ function Pomodoro() {
 
     setLoading(true)
     try {
-      await api.post(`/pomodoro-sessions/${activeSession.id}/interrupt`, {
-        interruption_reason: interruptionReason || '手动中断'
-      })
+      await pomodoroService.interruptSession(activeSession.id, interruptionReason || '手动中断')
 
       setActiveSession(null)
       stopTimer()
@@ -238,8 +253,7 @@ function Pomodoro() {
       fetchSessions()
       message.warning('番茄钟已中断')
     } catch (error) {
-      console.error('中断番茄钟失败:', error)
-      message.error('中断番茄钟失败')
+      message.error('中断番茄钟失败: ' + (error.error || error.message))
     } finally {
       setLoading(false)
     }
@@ -481,7 +495,7 @@ function Pomodoro() {
                       type="primary"
                       size="large"
                       icon={<PlayCircleOutlined />}
-                      onClick={resumePomododoro}
+                      onClick={resumePomodoro}
                       disabled={loading}
                     >
                       继续

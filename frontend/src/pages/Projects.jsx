@@ -6,14 +6,17 @@ import {
   Modal,
   Form,
   Input,
-  ColorPicker,
+  Select,
   message,
   Popconfirm,
   Space,
   Tag,
   Row,
   Col,
-  Statistic
+  Statistic,
+  Progress,
+  Empty,
+  Tooltip
 } from 'antd'
 import {
   PlusOutlined,
@@ -22,44 +25,61 @@ import {
   ProjectOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  FireOutlined
+  FireOutlined,
+  FolderOutlined
 } from '@ant-design/icons'
-import api from '../services/api'
+import { projectService } from '../services/api'
+import { useAuthStore } from '../stores/authStore'
 
 const { TextArea } = Input
 
 function Projects() {
+  const { isAuthenticated } = useAuthStore()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
   const [editingProject, setEditingProject] = useState(null)
   const [form] = Form.useForm()
 
+  // 预设颜色选项
+  const colorOptions = [
+    { label: '蓝色', value: '#1890ff' },
+    { label: '绿色', value: '#52c41a' },
+    { label: '橙色', value: '#fa8c16' },
+    { label: '红色', value: '#f5222d' },
+    { label: '紫色', value: '#722ed1' },
+    { label: '青色', value: '#13c2c2' },
+    { label: '粉色', value: '#eb2f96' },
+    { label: '灰色', value: '#8c8c8c' }
+  ]
+
   // 获取项目列表
   const fetchProjects = async () => {
     setLoading(true)
     try {
-      const response = await api.get('/projects')
-      setProjects(response.data)
+      const response = await projectService.getProjects()
+      setProjects(response || [])
     } catch (error) {
-      message.error('获取项目列表失败')
+      message.error('获取项目列表失败: ' + (error.error || error.message))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchProjects()
-  }, [])
+    if (isAuthenticated) {
+      fetchProjects()
+    }
+  }, [isAuthenticated])
 
   // 创建/更新项目
   const handleSubmit = async (values) => {
     try {
       if (editingProject) {
-        await api.put(`/projects/${editingProject.id}`, values)
+        await projectService.updateProject(editingProject.id, values)
         message.success('项目更新成功')
       } else {
-        await api.post('/projects', values)
+        await projectService.createProject(values)
         message.success('项目创建成功')
       }
       setModalVisible(false)
@@ -67,18 +87,18 @@ function Projects() {
       form.resetFields()
       fetchProjects()
     } catch (error) {
-      message.error(error.response?.data?.error || '操作失败')
+      message.error('操作失败: ' + (error.error || error.message))
     }
   }
 
   // 删除项目
   const handleDelete = async (projectId) => {
     try {
-      await api.delete(`/projects/${projectId}`)
+      await projectService.deleteProject(projectId)
       message.success('项目删除成功')
       fetchProjects()
     } catch (error) {
-      message.error(error.response?.data?.error || '删除失败')
+      message.error('删除失败: ' + (error.error || error.message))
     }
   }
 
@@ -113,9 +133,21 @@ function Projects() {
     return `${mins}分钟`
   }
 
+  // 未登录状态
+  if (!isAuthenticated) {
+    return (
+      <Card title="项目管理">
+        <Empty
+          description="请先登录以管理项目"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      </Card>
+    )
+  }
+
   return (
-    <div style={{ padding: '24px' }}>
-      <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }}>
+    <div>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
         <Col>
           <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>
             项目管理
@@ -179,87 +211,111 @@ function Projects() {
       </Row>
 
       {/* 项目列表 */}
-      <List
-        loading={loading}
-        dataSource={projects}
-        renderItem={(project) => (
-          <Card
-            key={project.id}
-            style={{ marginBottom: '16px' }}
-            size="small"
-            title={
-              <Space>
-                <div
-                  style={{
-                    width: '12px',
-                    height: '12px',
-                    backgroundColor: project.color,
-                    borderRadius: '2px'
-                  }}
-                />
-                {project.name}
-                <Tag color={project.color}>
-                  {project.task_count} 个任务
-                </Tag>
-              </Space>
-            }
-            extra={
-              <Space>
-                <Button
-                  type="text"
-                  icon={<EditOutlined />}
-                  onClick={() => openEditModal(project)}
-                />
-                <Popconfirm
-                  title="确认删除"
-                  description={`确定要删除项目"${project.name}"吗？此操作不可恢复。`}
-                  onConfirm={() => handleDelete(project.id)}
-                  okText="确定"
-                  cancelText="取消"
-                >
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                  />
-                </Popconfirm>
-              </Space>
-            }
+      {projects.length === 0 && !loading ? (
+        <Card>
+          <Empty
+            description="暂无项目"
+            image={<FolderOutlined style={{ fontSize: '64px', color: '#ccc' }} />}
           >
-            {project.description && (
-              <p style={{ margin: '0 0 8px', color: '#666' }}>
-                {project.description}
-              </p>
-            )}
-            <Row gutter={16}>
-              <Col span={8}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: project.color }}>
-                    {project.task_count}
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditModal()}>
+              创建第一个项目
+            </Button>
+          </Empty>
+        </Card>
+      ) : (
+        <List
+          loading={loading}
+          dataSource={projects}
+          renderItem={(project) => (
+            <Card
+              key={project.id}
+              style={{ marginBottom: 16 }}
+              size="default"
+              title={
+                <Space>
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      backgroundColor: project.color,
+                      borderRadius: '4px',
+                      border: '1px solid #f0f0f0'
+                    }}
+                  />
+                  <span style={{ fontWeight: 600 }}>{project.name}</span>
+                  <Tag color={project.color}>
+                    {project.task_count || 0} 个任务
+                  </Tag>
+                </Space>
+              }
+              extra={
+                <Space>
+                  <Tooltip title="编辑项目">
+                    <Button
+                      type="text"
+                      icon={<EditOutlined />}
+                      onClick={() => openEditModal(project)}
+                    />
+                  </Tooltip>
+                  <Popconfirm
+                    title="确认删除"
+                    description={`确定要删除项目"${project.name}"吗？此操作不可恢复。`}
+                    onConfirm={() => handleDelete(project.id)}
+                    okText="确定"
+                    cancelText="取消"
+                  >
+                    <Tooltip title="删除项目">
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                      />
+                    </Tooltip>
+                  </Popconfirm>
+                </Space>
+              }
+            >
+              {project.description && (
+                <p style={{ margin: '0 0 16px', color: '#666', fontSize: '14px' }}>
+                  {project.description}
+                </p>
+              )}
+
+              <Row gutter={24}>
+                <Col span={8}>
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: project.color, marginBottom: '4px' }}>
+                      {project.task_count || 0}
+                    </div>
+                    <div style={{ color: '#999', fontSize: '14px' }}>任务数量</div>
                   </div>
-                  <div style={{ color: '#999', fontSize: '12px' }}>任务数量</div>
-                </div>
-              </Col>
-              <Col span={8}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1890ff' }}>
-                    {formatTime(project.total_estimated_time)}
+                </Col>
+                <Col span={8}>
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1890ff', marginBottom: '4px' }}>
+                      {formatTime(project.total_estimated_time || 0)}
+                    </div>
+                    <div style={{ color: '#999', fontSize: '14px' }}>预估时间</div>
                   </div>
-                  <div style={{ color: '#999', fontSize: '12px' }}>预估时间</div>
-                </div>
-              </Col>
-              <Col span={8}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#52c41a' }}>
-                    {Math.round(project.completion_progress * 100)}%
+                </Col>
+                <Col span={8}>
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#52c41a', marginBottom: '4px' }}>
+                      {Math.round((project.completion_progress || 0) * 100)}%
+                    </div>
+                    <div style={{ color: '#999', fontSize: '14px', marginBottom: '8px' }}>完成进度</div>
+                    <Progress
+                      percent={Math.round((project.completion_progress || 0) * 100)}
+                      size="small"
+                      strokeColor={project.color}
+                    />
                   </div>
-                  <div style={{ color: '#999', fontSize: '12px' }}>完成进度</div>
-                </div>
-              </Col>
-            </Row>
-          </Card>
-        )}
-      />
+                </Col>
+              </Row>
+            </Card>
+          )}
+        />
+      )}
 
       {/* 创建/编辑项目模态框 */}
       <Modal
@@ -267,12 +323,16 @@ function Projects() {
         open={modalVisible}
         onCancel={closeModal}
         footer={null}
-        width={500}
+        width={600}
+        destroyOnClose
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
+          initialValues={{
+            color: '#1890ff'
+          }}
         >
           <Form.Item
             label="项目名称"
@@ -287,11 +347,24 @@ function Projects() {
             name="color"
             rules={[{ required: true, message: '请选择项目颜色' }]}
           >
-            <ColorPicker
-              showText
-              format="hex"
-              placeholder="选择项目颜色"
-            />
+            <Select placeholder="请选择项目颜色">
+              {colorOptions.map(color => (
+                <Select.Option key={color.value} value={color.value}>
+                  <Space>
+                    <div
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        backgroundColor: color.value,
+                        borderRadius: '4px',
+                        border: '1px solid #f0f0f0'
+                      }}
+                    />
+                    {color.label}
+                  </Space>
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Form.Item
@@ -301,6 +374,8 @@ function Projects() {
             <TextArea
               rows={4}
               placeholder="请输入项目描述（可选）"
+              showCount
+              maxLength={500}
             />
           </Form.Item>
 
@@ -310,7 +385,7 @@ function Projects() {
                 取消
               </Button>
               <Button type="primary" htmlType="submit">
-                {editingProject ? '更新' : '创建'}
+                {editingProject ? '更新项目' : '创建项目'}
               </Button>
             </Space>
           </Form.Item>

@@ -14,13 +14,20 @@ const useAuthStore = create(
       login: async (credentials) => {
         try {
           const response = await authService.login(credentials)
+          console.log('AuthStore - 登录响应:', response)
           set({
             isAuthenticated: true,
             user: response.user,
             token: response.access_token
           })
+          console.log('AuthStore - 状态已更新:', {
+            isAuthenticated: true,
+            user: response.user,
+            token: response.access_token ? '已设置' : '未设置'
+          })
           return response
         } catch (error) {
+          console.error('AuthStore - 登录失败:', error)
           throw error
         }
       },

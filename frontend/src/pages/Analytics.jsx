@@ -24,13 +24,28 @@ import {
     CalendarOutlined
 } from '@ant-design/icons';
 import { Line, Pie, Column } from '@ant-design/plots';
-import axios from 'axios';
+import { taskService, pomodoroService } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
 const Analytics = () => {
+    const { isAuthenticated } = useAuthStore();
+
+    // 如果用户未登录，显示提示信息
+    if (!isAuthenticated) {
+        return (
+            <div style={{ padding: '24px', textAlign: 'center' }}>
+                <Empty
+                    description="请先登录以查看数据分析"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+            </div>
+        )
+    }
+
     const [loading, setLoading] = useState(false);
     const [tasks, setTasks] = useState([]);
     const [pomodoroSessions, setPomodoroSessions] = useState([]);
@@ -47,29 +62,14 @@ const Analytics = () => {
         averageTaskTime: 0
     });
 
-    // 获取认证token
-    const getToken = () => {
-        return localStorage.getItem('access_token');
-    };
-
-    // API配置
-    const api = axios.create({
-        baseURL: 'http://localhost:5000/api',
-        headers: {
-            'Authorization': `Bearer ${getToken()}`,
-            'Content-Type': 'application/json'
-        }
-    });
-
     // 获取任务数据
     const fetchTasks = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/tasks/');
-            setTasks(response.data.tasks || []);
+            const response = await taskService.getTasks();
+            setTasks(response.tasks || []);
         } catch (error) {
-            console.error('获取任务数据失败:', error);
-            message.error('获取任务数据失败');
+            message.error('获取任务数据失败: ' + (error.error || error.message));
         } finally {
             setLoading(false);
         }
@@ -79,12 +79,10 @@ const Analytics = () => {
     const fetchPomodoroSessions = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/pomodoro-sessions/');
-            setPomodoroSessions(response.data.pomodoro_sessions || []);
+            const response = await pomodoroService.getSessions();
+            setPomodoroSessions(response.pomodoro_sessions || []);
         } catch (error) {
-            console.error('获取番茄钟数据失败:', error);
-            // 如果API不存在，使用模拟数据
-            setPomodoroSessions([]);
+            message.error('获取番茄钟数据失败: ' + (error.error || error.message));
         } finally {
             setLoading(false);
         }
@@ -326,9 +324,11 @@ const Analytics = () => {
     };
 
     useEffect(() => {
-        fetchTasks();
-        fetchPomodoroSessions();
-    }, []);
+        if (isAuthenticated) {
+            fetchTasks();
+            fetchPomodoroSessions();
+        }
+    }, [isAuthenticated]);
 
     useEffect(() => {
         calculateStats();
