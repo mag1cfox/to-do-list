@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { Layout, Card } from 'antd'
 import Header from './components/Header'
+import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Tasks from './pages/Tasks'
@@ -10,6 +11,7 @@ import TimeBlockScheduler from './components/TimeBlockScheduler'
 import Pomodoro from './pages/Pomodoro'
 import Analytics from './pages/Analytics'
 import IntelligentScheduling from './pages/IntelligentScheduling'
+import TimeBlockAnalytics from './pages/TimeBlockAnalytics'
 import DebugPage from './DebugPage'
 import './App.css'
 
@@ -42,16 +44,61 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/test" element={<DebugPage />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/scheduler" element={<TimeBlockScheduler />} />
-          <Route path="/scheduler-templates" element={<Scheduler />} />
-          <Route path="/pomodoro" element={<Pomodoro />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/intelligent-scheduling" element={<IntelligentScheduling />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/tasks" element={
+            <ProtectedRoute>
+              <Tasks />
+            </ProtectedRoute>
+          } />
+          <Route path="/projects" element={
+            <ProtectedRoute>
+              <Projects />
+            </ProtectedRoute>
+          } />
+          <Route path="/calendar" element={
+            <ProtectedRoute>
+              <Calendar />
+            </ProtectedRoute>
+          } />
+          <Route path="/scheduler" element={
+            <ProtectedRoute>
+              <TimeBlockScheduler />
+            </ProtectedRoute>
+          } />
+          <Route path="/scheduler-templates" element={
+            <ProtectedRoute>
+              <Scheduler />
+            </ProtectedRoute>
+          } />
+          <Route path="/pomodoro" element={
+            <ProtectedRoute>
+              <Pomodoro />
+            </ProtectedRoute>
+          } />
+          <Route path="/analytics" element={
+            <ProtectedRoute>
+              <Analytics />
+            </ProtectedRoute>
+          } />
+          <Route path="/timeblock-analytics" element={
+            <ProtectedRoute>
+              <TimeBlockAnalytics />
+            </ProtectedRoute>
+          } />
+          <Route path="/intelligent-scheduling" element={
+            <ProtectedRoute>
+              <IntelligentScheduling />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
         </Routes>
       </Content>
     </Layout>

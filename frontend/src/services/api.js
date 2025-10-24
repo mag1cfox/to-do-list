@@ -104,7 +104,12 @@ export const timeBlockService = {
   scheduleTask: (timeBlockId, taskId) => api.post(`/time-blocks/${timeBlockId}/schedule-task`, { task_id: taskId }),
   unscheduleTask: (timeBlockId, taskId) => api.post(`/time-blocks/${timeBlockId}/unschedule-task`, { task_id: taskId }),
   checkConflicts: (date) => api.post('/time-blocks/check-conflicts', { date }),
-  suggestTimeSlots: (taskId, date) => api.post('/time-blocks/suggest-time-slots', { task_id: taskId, date })
+  suggestTimeSlots: (taskId, date) => api.post('/time-blocks/suggest-time-slots', { task_id: taskId, date }),
+  // 新增API
+  getStatistics: (params) => api.get('/time-blocks/statistics', { params }),
+  searchTimeBlocks: (params) => api.get('/time-blocks/search', { params }),
+  batchCreateTimeBlocks: (data) => api.post('/time-blocks/batch', data),
+  batchDeleteTimeBlocks: (data) => api.delete('/time-blocks/batch', { data })
 }
 
 // 时间块模板相关API

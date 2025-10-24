@@ -21,11 +21,12 @@ class BaseModel(db.Model):
         }
 
 
-# 导入所有模型
+# 导入所有模型 - 注意导入顺序，确保被引用的模型先导入
 from .user import User
 from .task import Task
 from .task_category import TaskCategory
 from .time_block import TimeBlock
+from .time_block_template_config import TimeBlockTemplateConfig  # 必须在TimeBlockTemplate之前导入
 from .time_block_template import TimeBlockTemplate
 from .pomodoro_session import PomodoroSession
 # from .time_log import TimeLog

@@ -1,7 +1,7 @@
 from . import BaseModel, db
 from sqlalchemy import String, Text, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
-from typing import Dict, Any
+from typing import Dict, Any, List
 from datetime import datetime, timedelta
 
 
@@ -14,9 +14,13 @@ class TimeBlockTemplate(BaseModel):
     description = db.Column(Text)
     is_default = db.Column(Boolean, default=False)
 
+    # 模板类型
+    template_type = db.Column(String(50), default='custom')  # 'preset', 'custom'
+
     # 关联关系
     user = relationship('User', back_populates='time_block_templates')
     time_blocks = relationship('TimeBlock', back_populates='template')
+    configurations = relationship('TimeBlockTemplateConfig', back_populates='template', lazy='dynamic')
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -38,24 +42,75 @@ class TimeBlockTemplate(BaseModel):
         """将模板应用到指定日期，生成时间块列表"""
         time_blocks = []
 
-        # 这里应该根据模板配置生成时间块
-        # 由于模板的具体配置逻辑比较复杂，这里提供一个基础实现
-        # 实际实现应该根据模板的具体配置（如时间段、类型等）生成时间块
+        try:
+            # 优先使用配置表生成时间块
+            if self.template_type == 'custom':
+                configs = self.configurations.filter_by(is_active=True).order_by('order_index').all()
+                if configs:
+                    time_blocks = self._generate_from_configs(target_date, configs)
+                else:
+                    # 如果没有配置，使用预设模板
+                    time_blocks = self._generate_preset_template(target_date)
+            else:
+                # 预设模板
+                time_blocks = self._generate_preset_template(target_date)
 
-        # 示例：生成一个基础的工作日模板
-        if self.name == "标准工作日":
-            time_blocks = self._generate_standard_workday(target_date)
-        elif self.name == "深度工作模式":
-            time_blocks = self._generate_deep_work_day(target_date)
-        else:
-            # 默认实现：复制模板中已有的时间块配置
+        except Exception as e:
+            # 出错时使用回退逻辑
             time_blocks = self._copy_existing_time_blocks(target_date)
 
         return time_blocks
 
+    def _generate_from_configs(self, target_date: datetime, configs: List) -> list:
+        """基于配置生成时间块"""
+        from .time_block import TimeBlock, BlockType
+
+        time_blocks = []
+        base_date = datetime.combine(target_date, datetime.min.time())
+
+        for config in configs:
+            try:
+                # 解析时间
+                start_time = datetime.strptime(config.start_time, '%H:%M').time()
+                end_time = datetime.strptime(config.end_time, '%H:%M').time()
+
+                # 创建时间块
+                start_datetime = datetime.combine(target_date, start_time)
+                end_datetime = datetime.combine(target_date, end_time)
+
+                # 处理跨日期情况
+                if end_datetime < start_datetime:
+                    end_datetime = datetime.combine(target_date + timedelta(days=1), end_time)
+
+                time_block = TimeBlock(
+                    user_id=self.user_id,
+                    date=target_date,
+                    start_time=start_datetime,
+                    end_time=end_datetime,
+                    block_type=getattr(BlockType, config.block_type, BlockType.GROWTH),
+                    color=config.color,
+                    template_id=self.id
+                )
+                time_blocks.append(time_block)
+
+            except (ValueError, AttributeError) as e:
+                # 跳过无效配置，继续处理其他配置
+                continue
+
+        return time_blocks
+
+    def _generate_preset_template(self, target_date: datetime) -> list:
+        """生成预设模板"""
+        if self.name == "标准工作日":
+            return self._generate_standard_workday(target_date)
+        elif self.name == "深度工作模式":
+            return self._generate_deep_work_day(target_date)
+        else:
+            return self._copy_existing_time_blocks(target_date)
+
     def _generate_standard_workday(self, target_date: datetime) -> list:
         """生成标准工作日时间块"""
-        from models.time_block import TimeBlock, BlockType
+        from .time_block import TimeBlock, BlockType
 
         time_blocks = []
         base_time = datetime.combine(target_date, datetime.min.time())
@@ -86,7 +141,7 @@ class TimeBlockTemplate(BaseModel):
 
     def _generate_deep_work_day(self, target_date: datetime) -> list:
         """生成深度工作模式时间块"""
-        from models.time_block import TimeBlock, BlockType
+        from .time_block import TimeBlock, BlockType
 
         time_blocks = []
         base_time = datetime.combine(target_date, datetime.min.time())
@@ -128,7 +183,7 @@ class TimeBlockTemplate(BaseModel):
 
     def _copy_existing_time_blocks(self, target_date: datetime) -> list:
         """复制模板中已有的时间块配置"""
-        from models.time_block import TimeBlock
+        from .time_block import TimeBlock
 
         time_blocks = []
 

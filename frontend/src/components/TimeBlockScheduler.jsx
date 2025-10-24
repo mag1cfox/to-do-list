@@ -1,58 +1,46 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Card,
-    Calendar,
     Button,
-    Modal,
     Form,
-    Input,
-    Select,
     DatePicker,
-    TimePicker,
-    ColorPicker,
     Space,
     message,
     Typography,
     Row,
     Col,
-    Tag,
-    Tooltip,
-    Popconfirm,
     Empty,
     Spin,
-    Divider,
-    List,
-    Avatar,
     Badge,
-    Switch,
-    Alert,
     notification,
-    Drawer
+    Modal
 } from 'antd';
 import {
     PlusOutlined,
-    EditOutlined,
-    DeleteOutlined,
-    CalendarOutlined,
-    ClockCircleOutlined,
-    DragOutlined,
     ReloadOutlined,
-    BlockOutlined,
     ScheduleOutlined,
-    CheckCircleOutlined,
-    ExclamationCircleOutlined,
     WarningOutlined,
-    EyeOutlined,
-    SettingOutlined
+    BarChartOutlined,
+    SearchOutlined,
+    AppstoreOutlined,
+    DeleteOutlined
 } from '@ant-design/icons';
 import { timeBlockService, taskService } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import dayjs from 'dayjs';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { DragDropContext } from 'react-beautiful-dnd';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
-const { TextArea } = Input;
+// 导入拆分后的组件
+import TimeBlockItem from './TimeBlockItem';
+import TaskPool from './TaskPool';
+import TimeBlockForm from './TimeBlockForm';
+import ConflictDrawer from './ConflictDrawer';
+import BlockTypeLegend from './BlockTypeLegend';
+import TimeBlockBatchOperations from './TimeBlockBatchOperations';
+import TimeBlockStatistics from './TimeBlockStatistics';
+import TimeBlockSearch from './TimeBlockSearch';
+
+const { Title } = Typography;
 
 const TimeBlockScheduler = () => {
     const { isAuthenticated } = useAuthStore();
@@ -64,8 +52,14 @@ const TimeBlockScheduler = () => {
     const [selectedDate, setSelectedDate] = useState(dayjs());
     const [conflictDrawerVisible, setConflictDrawerVisible] = useState(false);
     const [conflicts, setConflicts] = useState([]);
-    const [viewMode, setViewMode] = useState('day'); // 'day' | 'week' | 'month'
+    const [autoFixes, setAutoFixes] = useState([]);
+    const [severitySummary, setSeveritySummary] = useState({});
     const [form] = Form.useForm();
+
+    // 新增状态
+    const [batchModalVisible, setBatchModalVisible] = useState(false);
+    const [statisticsVisible, setStatisticsVisible] = useState(false);
+    const [searchVisible, setSearchVisible] = useState(false);
 
     // 时间块类型配置
     const blockTypeConfig = {
@@ -83,9 +77,7 @@ const TimeBlockScheduler = () => {
         setLoading(true);
         try {
             const dateStr = date.format('YYYY-MM-DD');
-            const response = await timeBlockService.getTimeBlocks({
-                date: dateStr
-            });
+            const response = await timeBlockService.getTimeBlocks({ date: dateStr });
             setTimeBlocks(response || []);
             // 检查时间冲突
             checkConflicts(response || []);
@@ -120,7 +112,12 @@ const TimeBlockScheduler = () => {
         try {
             const response = await timeBlockService.checkConflicts(selectedDate.format('YYYY-MM-DD'));
             const conflicts = response.conflicts || [];
+            const autoFixes = response.auto_fixes || [];
+            const severitySummary = response.severity_summary || {};
+
             setConflicts(conflicts);
+            setAutoFixes(autoFixes);
+            setSeveritySummary(severitySummary);
 
             // 如果有冲突，显示通知
             if (conflicts.length > 0) {
@@ -160,32 +157,15 @@ const TimeBlockScheduler = () => {
                         block1: block1,
                         block2: block2,
                         duration: Math.min(end1.valueOf(), end2.valueOf()) - Math.max(start1.valueOf(), start2.valueOf()),
-                        message: `${blockTypeConfig[block1.block_type]?.label || block1.block_type} 时间块与 ${blockTypeConfig[block2.block_type]?.label || block2.block_type} 时间块时间重叠`
+                        message: `${blockTypeConfig[block1.block_type]?.label || block1.block_type} 时间块与 ${blockTypeConfig[block2.block_type]?.label || block2.block_type} 时间块时间重叠`,
+                        severity: 'medium'
                     });
                 }
             }
         }
 
-        // 检查任务与时间块的时间匹配
-        blocks.forEach(block => {
-            if (block.scheduled_tasks && block.scheduled_tasks.length > 0) {
-                block.scheduled_tasks.forEach(task => {
-                    const taskDuration = (task.estimated_pomodoros || 1) * 25; // 25分钟每个番茄钟
-                    const blockDuration = dayjs(block.end_time).diff(dayjs(block.start_time), 'minute');
-
-                    if (taskDuration > blockDuration) {
-                        conflicts.push({
-                            type: 'task_duration',
-                            block: block,
-                            task: task,
-                            message: `任务"${task.title}"的预估时间(${taskDuration}分钟)超过时间块时长(${blockDuration}分钟)`
-                        });
-                    }
-                });
-            }
-        });
-
         setConflicts(conflicts);
+        setSeveritySummary({ medium: conflicts.length });
 
         // 如果有冲突，显示通知
         if (conflicts.length > 0) {
@@ -212,12 +192,11 @@ const TimeBlockScheduler = () => {
                 recurrence_pattern: values.recurrence_pattern
             };
 
-            let response;
             if (editingBlock) {
-                response = await timeBlockService.updateTimeBlock(editingBlock.id, blockData);
+                await timeBlockService.updateTimeBlock(editingBlock.id, blockData);
                 message.success('时间块更新成功');
             } else {
-                response = await timeBlockService.createTimeBlock(blockData);
+                await timeBlockService.createTimeBlock(blockData);
                 message.success('时间块创建成功');
             }
 
@@ -243,6 +222,18 @@ const TimeBlockScheduler = () => {
             const errorMessage = error.error || '删除时间块失败';
             message.error(errorMessage);
         }
+    };
+
+    // 编辑时间块
+    const handleEditBlock = (block) => {
+        setEditingBlock(block);
+        setModalVisible(true);
+    };
+
+    // 创建时间块
+    const handleCreateBlock = () => {
+        setEditingBlock(null);
+        setModalVisible(true);
     };
 
     // 拖拽结束处理
@@ -298,218 +289,15 @@ const TimeBlockScheduler = () => {
         }
     };
 
-    // 打开编辑模态框
-    const handleEditBlock = (block) => {
-        setEditingBlock(block);
-        form.setFieldsValue({
-            block_type: block.block_type,
-            start_time: dayjs(block.start_time),
-            end_time: dayjs(block.end_time),
-            color: block.color,
-            is_recurring: block.is_recurring,
-            recurrence_pattern: block.recurrence_pattern
-        });
-        setModalVisible(true);
-    };
-
-    // 打开创建模态框
-    const handleCreateBlock = () => {
-        setEditingBlock(null);
-        form.resetFields();
-        form.setFieldsValue({
-            block_type: 'GROWTH',
-            is_recurring: false,
-            color: blockTypeConfig['GROWTH'].color
-        });
-        setModalVisible(true);
-    };
-
-    // 时间块组件
-    const TimeBlockItem = ({ block, index }) => {
-        const config = blockTypeConfig[block.block_type] || { label: block.block_type, color: '#1890ff' };
-
-        return (
-            <Card
-                size="small"
-                style={{
-                    backgroundColor: config.color,
-                    border: 'none',
-                    borderRadius: '8px',
-                    marginBottom: '8px',
-                    position: 'relative'
-                }}
-                bodyStyle={{ padding: '12px' }}
-            >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-                            <Text style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold' }}>
-                                {config.icon} {config.label}
-                            </Text>
-                            <Badge
-                                count={block.scheduled_tasks?.length || 0}
-                                style={{
-                                    backgroundColor: 'rgba(255,255,255,0.3)',
-                                    marginLeft: '8px',
-                                    color: '#fff'
-                                }}
-                            />
-                        </div>
-                        <Text style={{ color: '#fff', fontSize: '12px' }}>
-                            {dayjs(block.start_time).format('HH:mm')} - {dayjs(block.end_time).format('HH:mm')}
-                            {' '}({block.duration || dayjs(block.end_time).diff(dayjs(block.start_time), 'minute')}分钟)
-                        </Text>
-
-                        {/* 已调度的任务 */}
-                        {block.scheduled_tasks && block.scheduled_tasks.length > 0 && (
-                            <div style={{ marginTop: '6px' }}>
-                                <Droppable droppableId={`time-block-${block.id}`} direction="vertical">
-                                    {(provided, snapshot) => (
-                                        <div
-                                            {...provided.droppableProps}
-                                            ref={provided.innerRef}
-                                            style={{
-                                                backgroundColor: snapshot.isDraggingOver ? 'rgba(255,255,255,0.2)' : 'transparent',
-                                                borderRadius: '4px',
-                                                padding: '4px',
-                                                minHeight: '20px'
-                                            }}
-                                        >
-                                            {block.scheduled_tasks.slice(0, 2).map((task, taskIndex) => (
-                                                <Draggable key={task.id} draggableId={task.id} index={taskIndex}>
-                                                    {(provided, snapshot) => (
-                                                        <div
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                            {...provided.dragHandleProps}
-                                                            style={{
-                                                                ...provided.draggableProps.style,
-                                                                backgroundColor: 'rgba(255,255,255,0.9)',
-                                                                borderRadius: '3px',
-                                                                padding: '2px 6px',
-                                                                marginBottom: '2px',
-                                                                fontSize: '11px',
-                                                                boxShadow: snapshot.isDragging ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
-                                                                display: 'flex',
-                                                                justifyContent: 'space-between',
-                                                                alignItems: 'center'
-                                                            }}
-                                                        >
-                                                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                {task.title}
-                                                            </span>
-                                                            <Popconfirm
-                                                                title="移除任务"
-                                                                description={`确定要将任务"${task.title}"从时间块中移除吗？`}
-                                                                onConfirm={async () => {
-                                                                    try {
-                                                                        await timeBlockService.unscheduleTask(block.id, task.id);
-                                                                        message.success('任务已移除');
-                                                                        fetchTimeBlocks(selectedDate);
-                                                                    } catch (error) {
-                                                                        console.error('移除任务失败:', error);
-                                                                        message.error('移除任务失败');
-                                                                    }
-                                                                }}
-                                                                okText="确定"
-                                                                cancelText="取消"
-                                                            >
-                                                                <Button
-                                                                    type="text"
-                                                                    size="small"
-                                                                    icon={<DeleteOutlined />}
-                                                                    style={{
-                                                                        color: '#666',
-                                                                        fontSize: '10px',
-                                                                        height: '16px',
-                                                                        lineHeight: '16px',
-                                                                        padding: '0 2px',
-                                                                        minWidth: '16px'
-                                                                    }}
-                                                                />
-                                                            </Popconfirm>
-                                                        </div>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                            {block.scheduled_tasks.length > 2 && (
-                                                <Text style={{ color: '#fff', fontSize: '10px' }}>
-                                                    +{block.scheduled_tasks.length - 2} 更多任务
-                                                </Text>
-                                            )}
-                                            {provided.placeholder}
-                                        </div>
-                                    )}
-                                </Droppable>
-                            </div>
-                        )}
-                    </div>
-
-                    <Space size="small" style={{ flexShrink: 0 }}>
-                        <Tooltip title="编辑">
-                            <Button
-                                type="text"
-                                size="small"
-                                icon={<EditOutlined />}
-                                onClick={() => handleEditBlock(block)}
-                                style={{ color: '#fff' }}
-                            />
-                        </Tooltip>
-                        <Tooltip title="删除">
-                            <Popconfirm
-                                title="确定删除？"
-                                description="删除时间块将同时移除其中的任务安排"
-                                onConfirm={() => handleDeleteBlock(block.id)}
-                                okText="确定"
-                                cancelText="取消"
-                            >
-                                <Button
-                                    type="text"
-                                    size="small"
-                                    icon={<DeleteOutlined />}
-                                    danger
-                                    style={{ color: '#fff' }}
-                                />
-                            </Popconfirm>
-                        </Tooltip>
-                    </Space>
-                </div>
-            </Card>
-        );
-    };
-
-    // 日历单元格渲染
-    const dateCellRender = (value) => {
-        const dateStr = value.format('YYYY-MM-DD');
-        const dayBlocks = timeBlocks.filter(block =>
-            dayjs(block.date).format('YYYY-MM-DD') === dateStr
-        );
-
-        if (dayBlocks.length === 0) return null;
-
-        return (
-            <div style={{ padding: '4px' }}>
-                {dayBlocks.slice(0, 3).map((block, index) => {
-                    const config = blockTypeConfig[block.block_type] || { color: '#1890ff' };
-                    return (
-                        <div
-                            key={block.id}
-                            style={{
-                                backgroundColor: config.color,
-                                height: '4px',
-                                borderRadius: '2px',
-                                marginBottom: '2px'
-                            }}
-                        />
-                    );
-                })}
-                {dayBlocks.length > 3 && (
-                    <Text style={{ fontSize: '10px', color: '#666' }}>
-                        +{dayBlocks.length - 3}
-                    </Text>
-                )}
-            </div>
-        );
+    // 自动修复所有冲突
+    const handleAutoFixAll = async () => {
+        try {
+            // 这里可以调用自动修复API
+            message.info('自动修复功能开发中...');
+        } catch (error) {
+            console.error('自动修复失败:', error);
+            message.error('自动修复失败');
+        }
     };
 
     useEffect(() => {
@@ -539,9 +327,6 @@ const TimeBlockScheduler = () => {
                         <Title level={2} style={{ margin: 0 }}>
                             <ScheduleOutlined /> 时间块规划
                         </Title>
-                        <Text type="secondary">
-                            智能时间块管理，支持拖拽排布和冲突检测
-                        </Text>
                     </Col>
                     <Col>
                         <Space>
@@ -554,6 +339,24 @@ const TimeBlockScheduler = () => {
                                     查看冲突 ({conflicts.length})
                                 </Button>
                             )}
+                            <Button
+                                icon={<SearchOutlined />}
+                                onClick={() => setSearchVisible(true)}
+                            >
+                                搜索
+                            </Button>
+                            <Button
+                                icon={<BarChartOutlined />}
+                                onClick={() => setStatisticsVisible(true)}
+                            >
+                                统计
+                            </Button>
+                            <Button
+                                icon={<AppstoreOutlined />}
+                                onClick={() => setBatchModalVisible(true)}
+                            >
+                                批量操作
+                            </Button>
                             <Button
                                 icon={<ReloadOutlined />}
                                 onClick={() => fetchTimeBlocks(selectedDate)}
@@ -606,9 +409,7 @@ const TimeBlockScheduler = () => {
                             title={`${selectedDate.format('YYYY年MM月DD日 dddd')} 时间块`}
                             extra={
                                 <Space>
-                                    <Text type="secondary">
-                                        共 {timeBlocks.length} 个时间块
-                                    </Text>
+                                    共 {timeBlocks.length} 个时间块
                                     {conflicts.length > 0 && (
                                         <Badge count={conflicts.length} style={{ backgroundColor: '#ff4d4f' }}>
                                             <WarningOutlined style={{ color: '#ff4d4f' }} />
@@ -636,258 +437,94 @@ const TimeBlockScheduler = () => {
                                     {timeBlocks
                                         .sort((a, b) => dayjs(a.start_time).diff(dayjs(b.start_time)))
                                         .map((block, index) => (
-                                            <TimeBlockItem key={block.id} block={block} index={index} />
+                                            <TimeBlockItem
+                                                key={block.id}
+                                                block={block}
+                                                index={index}
+                                                onEdit={handleEditBlock}
+                                                onDelete={handleDeleteBlock}
+                                                onUnscheduleTask={() => fetchTimeBlocks(selectedDate)}
+                                                blockTypeConfig={blockTypeConfig}
+                                            />
                                         ))}
                                 </div>
                             )}
                         </Card>
                     </Col>
 
-                    {/* 任务列表和日历 */}
+                    {/* 右侧面板 */}
                     <Col span={8}>
-                        {/* 可调度任务 */}
-                        <Card
-                            title="可调度任务"
-                            size="small"
-                            style={{ marginBottom: '16px' }}
-                        >
-                            <Droppable droppableId="task-list" direction="vertical">
-                                {(provided, snapshot) => (
-                                    <div
-                                        {...provided.droppableProps}
-                                        ref={provided.innerRef}
-                                        style={{
-                                            backgroundColor: snapshot.isDraggingOver ? '#f0f8ff' : 'transparent',
-                                            borderRadius: '4px',
-                                            padding: '8px',
-                                            minHeight: '100px',
-                                            maxHeight: '200px',
-                                            overflowY: 'auto'
-                                        }}
-                                    >
-                                        {tasks.length === 0 ? (
-                                            <Empty
-                                                description="暂无任务"
-                                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                            />
-                                        ) : (
-                                            tasks.map((task, index) => (
-                                                <Draggable key={task.id} draggableId={task.id} index={index}>
-                                                    {(provided, snapshot) => (
-                                                        <div
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                            {...provided.dragHandleProps}
-                                                            style={{
-                                                                ...provided.draggableProps.style,
-                                                                backgroundColor: snapshot.isDragging ? '#e6f7ff' : '#fff',
-                                                                border: '1px solid #d9d9d9',
-                                                                borderRadius: '6px',
-                                                                padding: '8px',
-                                                                marginBottom: '8px',
-                                                                cursor: 'move',
-                                                                boxShadow: snapshot.isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.1)'
-                                                            }}
-                                                        >
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <Text strong style={{ fontSize: '13px' }}>
-                                                                    {task.title}
-                                                                </Text>
-                                                                <DragOutlined style={{ color: '#999' }} />
-                                                            </div>
-                                                            <div style={{ marginTop: '4px' }}>
-                                                                <Tag size="small" color="blue">
-                                                                    {task.estimated_pomodoros || 1} 番茄钟
-                                                                </Tag>
-                                                                <Tag size="small" color={task.priority === 'HIGH' ? 'red' : task.priority === 'MEDIUM' ? 'orange' : 'green'}>
-                                                                    {task.priority}
-                                                                </Tag>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </Draggable>
-                                            ))
-                                        )}
-                                        {provided.placeholder}
-                                    </div>
-                                )}
-                            </Droppable>
-
-                            <Divider style={{ margin: '12px 0' }} />
-
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                                💡 拖拽任务到左侧时间块进行调度
-                            </Text>
-                        </Card>
-
-                        {/* 时间块类型说明 */}
-                        <Card title="时间块类型" size="small">
-                            <Space direction="vertical" style={{ width: '100%' }}>
-                                {Object.entries(blockTypeConfig).map(([type, config]) => (
-                                    <div key={type} style={{ display: 'flex', alignItems: 'center' }}>
-                                        <div
-                                            style={{
-                                                width: '16px',
-                                                height: '16px',
-                                                backgroundColor: config.color,
-                                                borderRadius: '3px',
-                                                marginRight: '8px'
-                                            }}
-                                        />
-                                        <Text style={{ fontSize: '13px' }}>
-                                            {config.icon} {config.label}
-                                        </Text>
-                                    </div>
-                                ))}
-                            </Space>
-                        </Card>
+                        <TaskPool tasks={tasks} />
+                        <BlockTypeLegend blockTypeConfig={blockTypeConfig} />
                     </Col>
                 </Row>
 
-                {/* 创建/编辑时间块模态框 */}
-                <Modal
-                    title={editingBlock ? '编辑时间块' : '创建时间块'}
-                    open={modalVisible}
+                {/* 创建/编辑时间块表单 */}
+                <TimeBlockForm
+                    visible={modalVisible}
                     onCancel={() => setModalVisible(false)}
-                    footer={null}
-                    width={500}
-                >
-                    <Form
-                        form={form}
-                        layout="vertical"
-                        onFinish={handleSubmit}
-                    >
-                        <Form.Item
-                            label="时间块类型"
-                            name="block_type"
-                            rules={[{ required: true, message: '请选择时间块类型' }]}
-                        >
-                            <Select placeholder="选择时间块类型">
-                                {Object.entries(blockTypeConfig).map(([type, config]) => (
-                                    <Option key={type} value={type}>
-                                        {config.icon} {config.label}
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-
-                        <Row gutter={16}>
-                            <Col span={12}>
-                                <Form.Item
-                                    label="开始时间"
-                                    name="start_time"
-                                    rules={[{ required: true, message: '请选择开始时间' }]}
-                                >
-                                    <TimePicker
-                                        format="HH:mm"
-                                        placeholder="选择开始时间"
-                                        style={{ width: '100%' }}
-                                    />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item
-                                    label="结束时间"
-                                    name="end_time"
-                                    rules={[{ required: true, message: '请选择结束时间' }]}
-                                >
-                                    <TimePicker
-                                        format="HH:mm"
-                                        placeholder="选择结束时间"
-                                        style={{ width: '100%' }}
-                                    />
-                                </Form.Item>
-                            </Col>
-                        </Row>
-
-                        <Form.Item
-                            label="颜色"
-                            name="color"
-                            rules={[{ required: true, message: '请选择颜色' }]}
-                        >
-                            <ColorPicker
-                                showText
-                                size="large"
-                                style={{ width: '100%' }}
-                            />
-                        </Form.Item>
-
-                        <Form.Item
-                            label="重复"
-                            name="is_recurring"
-                            valuePropName="checked"
-                        >
-                            <Switch />
-                        </Form.Item>
-
-                        <Form.Item
-                            label="重复模式"
-                            name="recurrence_pattern"
-                        >
-                            <Select placeholder="选择重复模式" allowClear>
-                                <Option value="daily">每天</Option>
-                                <Option value="weekly">每周</Option>
-                                <Option value="monthly">每月</Option>
-                                <Option value="workdays">工作日</Option>
-                            </Select>
-                        </Form.Item>
-
-                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                            <Space>
-                                <Button onClick={() => setModalVisible(false)}>
-                                    取消
-                                </Button>
-                                <Button type="primary" htmlType="submit">
-                                    {editingBlock ? '更新' : '创建'}
-                                </Button>
-                            </Space>
-                        </Form.Item>
-                    </Form>
-                </Modal>
+                    onSubmit={handleSubmit}
+                    editingBlock={editingBlock}
+                    selectedDate={selectedDate}
+                    blockTypeConfig={blockTypeConfig}
+                    form={form}
+                />
 
                 {/* 冲突详情抽屉 */}
-                <Drawer
-                    title={
-                        <Space>
-                            <WarningOutlined style={{ color: '#ff4d4f' }} />
-                            时间冲突详情
-                        </Space>
-                    }
-                    placement="right"
+                <ConflictDrawer
+                    visible={conflictDrawerVisible}
                     onClose={() => setConflictDrawerVisible(false)}
-                    open={conflictDrawerVisible}
-                    width={400}
+                    conflicts={conflicts}
+                    autoFixes={autoFixes}
+                    onAutoFixAll={handleAutoFixAll}
+                    severitySummary={severitySummary}
+                />
+
+                {/* 批量操作模态框 */}
+                <TimeBlockBatchOperations
+                    visible={batchModalVisible}
+                    onClose={() => setBatchModalVisible(false)}
+                    onSuccess={() => fetchTimeBlocks(selectedDate)}
+                    selectedDate={selectedDate}
+                />
+
+                {/* 统计分析模态框 */}
+                <Modal
+                    title="时间块统计分析"
+                    open={statisticsVisible}
+                    onCancel={() => setStatisticsVisible(false)}
+                    footer={null}
+                    width={1200}
+                    style={{ top: 20 }}
                 >
-                    {conflicts.length === 0 ? (
-                        <Empty description="无冲突" />
-                    ) : (
-                        <List
-                            dataSource={conflicts}
-                            renderItem={(conflict, index) => (
-                                <List.Item key={index}>
-                                    <Alert
-                                        message={conflict.message}
-                                        type="warning"
-                                        showIcon
-                                        style={{ width: '100%' }}
-                                    />
-                                </List.Item>
-                            )}
-                        />
-                    )}
+                    <TimeBlockStatistics />
+                </Modal>
 
-                    <Divider />
-
-                    <div>
-                        <Text strong>解决方案建议：</Text>
-                        <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
-                            <li>调整时间块的时间范围</li>
-                            <li>将任务移动到其他合适的时间块</li>
-                            <li>拆分长时间的任务到多个时间块</li>
-                            <li>删除不必要的时间块</li>
-                        </ul>
-                    </div>
-                </Drawer>
+                {/* 搜索模态框 */}
+                <Modal
+                    title="时间块搜索"
+                    open={searchVisible}
+                    onCancel={() => setSearchVisible(false)}
+                    footer={null}
+                    width={1000}
+                    style={{ top: 20 }}
+                >
+                    <TimeBlockSearch
+                        onTimeBlockSelect={(block) => {
+                            // 可以在这里处理选中的时间块，比如跳转到对应日期
+                            const blockDate = dayjs(block.date);
+                            if (blockDate.isSame(selectedDate, 'day')) {
+                                // 如果是同一天，高亮显示该时间块
+                                message.info(`已选择时间块：${blockTypeConfig[block.block_type]?.label || block.block_type}`);
+                            } else {
+                                // 跳转到对应日期
+                                setSelectedDate(blockDate);
+                                message.info(`已跳转到 ${blockDate.format('YYYY-MM-DD')} 的时间块`);
+                            }
+                            setSearchVisible(false);
+                        }}
+                    />
+                </Modal>
             </div>
         </DragDropContext>
     );

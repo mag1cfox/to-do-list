@@ -1,5 +1,5 @@
+from . import BaseModel, db
 from datetime import datetime
-from app import db
 from sqlalchemy import Enum as SQLAlchemyEnum
 import enum
 
@@ -13,15 +13,14 @@ class SessionType(enum.Enum):
     FOCUS = 'FOCUS'
     BREAK = 'BREAK'
 
-class PomodoroSession(db.Model):
+class PomodoroSession(BaseModel):
     __tablename__ = 'pomodoro_sessions'
 
-    id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    task_id = db.Column(db.String(36), db.ForeignKey('tasks.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
 
     # 时间追踪
-    start_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime)
     planned_duration = db.Column(db.Integer, nullable=False, default=25)  # 默认25分钟
     actual_duration = db.Column(db.Integer)  # 实际持续时间（分钟）
@@ -34,10 +33,6 @@ class PomodoroSession(db.Model):
     completion_summary = db.Column(db.Text)
     interruption_reason = db.Column(db.Text)
 
-    # 时间戳
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
     # 关联
     task = db.relationship('Task', back_populates='pomodoro_sessions')
     user = db.relationship('User', back_populates='pomodoro_sessions')
@@ -48,6 +43,7 @@ class PomodoroSession(db.Model):
         self.planned_duration = planned_duration
         self.session_type = session_type
         self.status = SessionStatus.PLANNED
+        self.start_time = datetime.utcnow()
 
     def start(self):
         """开始番茄钟会话"""
